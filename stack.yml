@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: search notification infrastructure resources
+Transform: "AWS::Serverless-2016-10-31"
+
+Resources:
+  LambdaFunctionA:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LambdaA
+      CodeUri: lambda-a
+      Handler: v1.handler
+      Timeout: 15
+      Runtime: nodejs8.10
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: Linear10PercentEvery2Minutes
+        Alarms:
+          - !Ref LambdaALatestVersionErrorMetricGreaterThanZeroAlarm
+        Hooks:
+          PreTraffic: !Ref PreTrafficLambdaFunction
+      Environment:
+        Variables:
+          QUEUE_URL: !Ref QueueBetweenAAndB
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - 'sqs:SendMessage'
+              Resource: '*'
+
+  QueueBetweenAAndB:
+    Type: AWS::SQS::Queue
+    Properties:
+      DelaySeconds: 30
+
+  LambdaFunctionB:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: LambdaB
+      CodeUri: lambda-b
+      Handler: v1.handler
+      Timeout: 15
+      Runtime: nodejs8.10
+      AutoPublishAlias: live
+      Events:
+        SQSEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt QueueBetweenAAndB.Arn
+            BatchSize: 1
+      DeploymentPreference:
+        Type: Linear10PercentEvery2Minutes
+        Alarms:
+          - !Ref LambdaBLatestVersionErrorMetricGreaterThanZeroAlarm
+
+  LambdaALatestVersionErrorMetricGreaterThanZeroAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: Lambda Function Error > 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Resource
+          Value: !Join [":", [!Ref LambdaFunctionA, !Select ["7", !Split [":", !Ref LambdaFunctionA.Version]]]]
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionA
+      EvaluationPeriods: 1
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 0
+
+  LambdaBLatestVersionErrorMetricGreaterThanZeroAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: Lambda Function Error > 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Resource
+          Value: !Join [":", [!Ref LambdaFunctionB, !Select ["7", !Split [":", !Ref LambdaFunctionB.Version]]]]
+        - Name: FunctionName
+          Value: !Ref LambdaFunctionB
+      EvaluationPeriods: 1
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 0
+
+  PreTrafficLambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: lambda-pre-traffic
+      Handler: index.handler
+      Policies:
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "codedeploy:PutLifecycleEventHookExecutionStatus"
+              Resource:
+                !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentgroup:${ServerlessDeploymentApplication}/*'
+        - Version: "2012-10-17"
+          Statement:
+            - Effect: "Allow"
+              Action:
+                - "lambda:InvokeFunction"
+              Resource:
+                'Fn::GetAtt':
+                  - LambdaFunctionA
+                  - Arn
+      Runtime: nodejs8.10
+      FunctionName: 'PreTrafficLambda'
+      DeploymentPreference:
+        Enabled: false
+      Environment:
+        Variables:
+          FUNCTION_NAME: LambdaA
+          FUNCTION_VERSION: !Select ["7", !Split [":", !Ref LambdaFunctionA.Version]]

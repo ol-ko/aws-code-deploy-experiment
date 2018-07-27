@@ -1,0 +1,1 @@
+aws cloudformation package --template-file stack.yml --s3-bucket hg-test-sandbox --s3-prefix $USER/aws-sandbox --output-template-file ./stack.json && aws cloudformation deploy --template-file ./stack.json --s3-bucket hg-test-sandbox --s3-prefix $USER/aws-sandbox --stack-name $USER-aws-sandbox --capabilities CAPABILITY_IAM
