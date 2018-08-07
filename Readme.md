@@ -1,4 +1,4 @@
-# Experimantal stack
+# Experimental stack
 
 This is a tiny experimental stack with two lambda functions: `LambdaA` and `LambdaB` and an SQS queue `QueueBetweenAAndB`.
 
