@@ -33,8 +33,8 @@ Steps:
 
 1. Deploy stack as is using `./deploy.sh`. Don't forget to export AWS_PROFILE variable before doing so.
 1. Observe the created resources. Note that DelaySeconds setting for a `QueueBetweenAAndB` has actually taken effect.
-1. In a Cloudformation templayte change `Handler` values for both LambdaA and LambdaB to point to a different code file.
-1. In a Cloudformation templayte change `DelaySeconds` value for `QueueBetweenAAndB` to provoke update of an SQS Queue resource.
+1. In a Cloudformation template change `Handler` values for both LambdaA and LambdaB to point to a different code file.
+1. In a Cloudformation template change `DelaySeconds` value for `QueueBetweenAAndB` to provoke update of an SQS Queue resource.
 1. Start the deployment of the modified stack using `./deploy.sh` again.
 1. In a Management Console, under Events section, note that two CodeDeploy deployments are eventually started.
 1. Deployment started for LambdaA should abort automatically soon after PreTraffic hook gets executed, due to corresponding Alarm being triggered.
